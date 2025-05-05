@@ -1,0 +1,27 @@
+{
+    "version": "2.0.0",
+    "tasks":
+    [
+    {
+    "type": "shell",
+    "label" : "C/C++ - Build OpenGL program",
+    "command": "C:\\mingw64\\bin\\g++.exe",
+    "args": [
+    "-g", "${file}",
+   "-o", "${fileDirname}\\${fileBasenameNoExtension}.exe",
+    "-I", "C:\\mingw64\\include",
+    "-L", "C:\\mingw64\\lib",
+    "-lfreeglut",
+   "-lopengl32",
+   "-lglu32"
+    ],
+    "group":
+    {
+    "kind":"build",
+    "isDefault":true
+    },
+    "problemMatcher": ["$gcc"],
+    }
+    ]
+   }
+   
