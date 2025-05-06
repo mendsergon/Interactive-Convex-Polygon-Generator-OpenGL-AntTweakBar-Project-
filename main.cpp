@@ -5,7 +5,6 @@
 #include <cmath>
 #include <random>
 #include <ctime>
-#include "libs/glui/include/GL/glui.h" // GLUI library
 
 struct  Point // Store x and y coordinates of each point of the polygon
 {
@@ -16,9 +15,6 @@ struct  Point // Store x and y coordinates of each point of the polygon
 int currentNumSides = 3;
 std::vector<Point> convextPolygon;
 
-// GLUI objects
-GLUI *glui;
-GLUI_Scrollbar * slider;
 
 // Function declarations
 void generateConvexPolygon(int n);
