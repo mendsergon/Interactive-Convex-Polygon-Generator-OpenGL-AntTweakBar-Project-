@@ -31,6 +31,37 @@ void display();
 void onNumSidesChanged(int newSides);
 void setupGLUI();
 
+// Andrew's monotone-chain convex hull
+static std::vector<Point> computeHull(std::vector<Point> pts)
+{
+    if (pts.size() < 3) return pts;
+    // Sort lexicographically
+    std::sort(pts.begin(), pts.end(), [](auto &A, auto &B)
+{
+    return (A.x < B.x) || (A.x == B.x && A.y < B.y);
+});
+std::vector<Point> H;
+
+// Lower hull
+for (auto &p : pts)
+{
+    while (H.size() >= 2 && crossProduct(H[H.size() - 2], H.back(), p) <= 0)
+        H.pop_back();
+        H.push_back(p);
+}
+
+// Upper hull
+for (int i = (int)pts.size() - 2, t = H.size() + 1; i >= 0; --i)
+{
+    auto &p = pts[i];
+    while (H.size() >= t && crossProduct(H[H.size() - 2], H.back(), p) <= 0)
+        H.pop_back();
+        H.push_back(p);
+}
+H.pop_back();
+return H;
+}
+
 // Function to generate the polygon with 'n' sides
 void generateConvexPolygon(int n) 
 {
@@ -42,15 +73,15 @@ void generateConvexPolygon(int n)
     }
 
     // Generate n unique random points
-    std::vector<Point> Points;
-    Points.reserve(n);
+    std::vector<Point> pts;
+    pts.reserve(n);
     std::mt19937 rng((unsigned)std::time(nullptr));
     std::uniform_int_distribution<int> dx(20, 619), dy(20, 459);
-    while ((int)Points.size() < n)
+    while ((int)pts.size() < n)
     {
         Point p{float(dx(rng)), float(dy(rng))};
         bool dup = false;
-        for (auto &q : Points)
+        for (auto &q : pts)
         {
             if (q.x == p.x && q.y == p.y)
             {
@@ -58,44 +89,50 @@ void generateConvexPolygon(int n)
                 break;
             } 
         }
-        if (!dup) Points.push_back(p);
+        if (!dup) pts.push_back(p);
     }
 
-    // Compute centroid
-    Point centroid{ 0.0f, 0.0f};
-    for (auto &p : Points)
+    // Compute true convex hull
+    auto hull = computeHull(pts);
+    int h = (int)hull.size();
+    if (h == n)
     {
-        centroid.x += p.x;
-        centroid.y += p.y;
+        convextPolygon = std::move(hull);
+        return;
+    }
+
+    // Subdivide edges if h < n
+    int need = n - h;
+    std::vector<int> subdiv(h, need / h);
+    for (int i = 0; i < need % h; ++i) subdiv[i]++;
+
+    std::vector<Point> boundary;
+    boundary.reserve(n);
+    for (int i = 0; i < h; ++i)
+    {
+        Point &A = hull[i], &B =hull[(i + 1) % h];
+        boundary.push_back(A);
+        int k = subdiv[i];
+        for (int j = 1; j <= k; ++j)
+        {
+            float t = float(j) / float(k + 1);
+            boundary.push_back({ A.x * (1 - t) + B.x * t, A.y * (1 - t) + B.y * t});
+        }
+    }
+
+    // CCW ordering around centroid
+    Point centroid{0, 0};
+    for (auto &p : boundary)
+    {
+        centroid.x += p.x; centroid.y += p.y;
     }
     centroid.x /= n;
     centroid.y /= n;
-
-    // Sort by polar angle around centroid
-    std::sort(Points.begin(), Points.end(), [&](const Point &A, const Point &B)
-    {
-        float a1 = std::atan2(A.y - centroid.y, A.x - centroid.x);
-        float a2 = std::atan2(B.y - centroid.y, B.x - centroid.x);
-        return a1 < a2;
-    });
-
-    // Convexity check
-    bool allLeft = true;
-    for (int i =0; i < n; ++i)
-    {
-        if (crossProduct(Points[i], Points[(i + 1) % n], Points[(i + 2) % n]) <= 0)
-        {
-            allLeft = false;
-            break;
-        }
-    }
-    if (!allLeft)
-    {
-        std::reverse(Points.begin(), Points.end());
-    }
-
-    // Store result as convext polygon
-    convextPolygon = std::move(Points);
+    std::sort(boundary.begin(), boundary.end(), [&](auto &A, auto &B)
+{
+    return atan2(A.y - centroid.y, A.x - centroid.x) < atan2(B.y - centroid.y, B.x - centroid.x);
+});
+convextPolygon = std::move(boundary);
 }
 
 // Compute the cross product of the two vectors to check the turn direction
@@ -239,7 +276,7 @@ int main(int argc, char **argv)
     glutDisplayFunc(display); 
 
     // Generate the initial polygon
-    generateConvexPolygon(40);
+    generateConvexPolygon(100);
 
     // Start main loop
     glutMainLoop(); 
