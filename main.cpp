@@ -13,13 +13,12 @@ struct  Point // Store x and y coordinates of each point of the polygon
 };
 
 // Global variables for number of sides and the polygon's points
-int currentNumSides = 5;
+int currentNumSides = 3;
 std::vector<Point> convextPolygon;
 
 // GLUI objects
 GLUI *glui;
 GLUI_Scrollbar * slider;
-float sliderValue = 50.0f;
 
 // Function declarations
 void generateConvexPolygon(int n);
@@ -28,7 +27,7 @@ void getBoundingBox(const std::vector<Point>& Polygon, float& minX, float& maxX,
 bool isInside(const Point& p, const Point& edgeStart, const Point& edgeEnd);
 void fillPolygon(const std::vector<Point>& Polygon);
 void display();
-void onNumSidesChanged(int newSides);
+void onNumSidesChanged(int controlID);
 void setupGLUI();
 
 // Andrew's monotone-chain convex hull
@@ -210,9 +209,10 @@ void fillPolygon(const std::vector<Point>& Polygon)
 }
 
 // Callback function for when the slider is changed
-void onNumSidesChanged(int newSides) 
+void onNumSidesChanged(int) 
 {
-
+    generateConvexPolygon(currentNumSides);
+    glutPostRedisplay();
 }
 
 // Function to set up GLUI controls
@@ -234,7 +234,6 @@ void display()
 
     // Fill the polygon manually
     fillPolygon(convextPolygon);
-
 
     // Draw polygon outline (black)
     glColor3f(0.0f, 0.0f, 0.0f); // Black edges
@@ -275,9 +274,14 @@ int main(int argc, char **argv)
     // Set up display callback
     glutDisplayFunc(display); 
 
+    // Setup GLUI
+    setupGLUI();
+
     // Generate the initial polygon
-    generateConvexPolygon(100);
+    generateConvexPolygon(3);
 
     // Start main loop
     glutMainLoop(); 
+
+    return 0;
 }
