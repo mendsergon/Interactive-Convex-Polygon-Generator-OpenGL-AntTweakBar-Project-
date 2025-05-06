@@ -2,7 +2,9 @@
 #include <vector> // Needed to store points for the polygon
 #include <iostream>
 #include <algorithm> // To use sort
-#include <cmath> 
+#include <cmath>
+#include <random>
+#include <ctime>
 #include "libs/glui/include/GL/glui.h" // GLUI library
 
 struct  Point // Store x and y coordinates of each point of the polygon
@@ -39,91 +41,61 @@ void generateConvexPolygon(int n)
         return;
     }
 
-    convextPolygon.clear(); // Clear any existing polygon
-
-    // Generate a set of unique points;
-    std::vector<Point> points;
-    int attempts = 0;
-    const int maxAttempts = 1000; // Limit retry attempts to avoid infinite loop
-    while (points.size() < n && attempts < maxAttempts) 
+    // Generate n unique random points
+    std::vector<Point> Points;
+    Points.reserve(n);
+    std::mt19937 rng((unsigned)std::time(nullptr));
+    std::uniform_int_distribution<int> dx(20, 619), dy(20, 459);
+    while ((int)Points.size() < n)
     {
-        attempts++;
-        Point p;
-        p.x = rand() % 600 + 20; // Random X coordinate
-        p.y = rand() % 440 + 20; // Random Y coordinate
-        
-        // Check if the point is already in the vector
-        bool isDuplicate = false;
-        for (const auto& existingPoint : points)
+        Point p{float(dx(rng)), float(dy(rng))};
+        bool dup = false;
+        for (auto &q : Points)
         {
-            if (existingPoint.x == p.x && existingPoint.y == p.y)
+            if (q.x == p.x && q.y == p.y)
             {
-                isDuplicate = true;
+                dup = true;
                 break;
-            }
+            } 
         }
-
-        if (!isDuplicate)
-        {
-            points.push_back(p); // Add unique point
-        }
-        else
-        {
-            std::cout << "Duplicate found, retrying: (" << p.x << ", " << p.y << ")\n";
-        }
+        if (!dup) Points.push_back(p);
     }
 
-    // If number of attempts exeeded the max limit, print an error
-    if (attempts >= maxAttempts)
+    // Compute centroid
+    Point centroid{ 0.0f, 0.0f};
+    for (auto &p : Points)
     {
-        std::cerr << "Error: Could not generate " << n << " unique points after " << maxAttempts << " attempts" << std::endl;
+        centroid.x += p.x;
+        centroid.y += p.y;
     }
+    centroid.x /= n;
+    centroid.y /= n;
 
-    // Find the pivot
-    Point pivot = points[0];
-    for (const auto& p : points)
+    // Sort by polar angle around centroid
+    std::sort(Points.begin(), Points.end(), [&](const Point &A, const Point &B)
     {
-        if (p.y < pivot.y || (p.y == pivot.y && p.x < pivot.x))
-        {
-            pivot = p;
-        }
-    }
-
-    // Sort points by polar angle with respect to pivot
-    std::sort(points.begin(), points.end(), [&pivot](const Point& p1, const Point& p2)
-    {
-        float angle1 = atan2(p1.y - pivot.y, p1.x - pivot.x);
-        float angle2 = atan2(p2.y - pivot.y, p2.x - pivot.x);
-        return angle1 < angle2;
+        float a1 = std::atan2(A.y - centroid.y, A.x - centroid.x);
+        float a2 = std::atan2(B.y - centroid.y, B.x - centroid.x);
+        return a1 < a2;
     });
 
-    // Create the convex hull using Graham's Scan
-    std::vector<Point> hull;
-    for (const auto& point : points)
+    // Convexity check
+    bool allLeft = true;
+    for (int i =0; i < n; ++i)
     {
-        // While the current point causes a right turn, remove the last point
-        while (hull.size() >= 2 && crossProduct(hull[hull.size() - 2], hull.back(), point) <= 0)
+        if (crossProduct(Points[i], Points[(i + 1) % n], Points[(i + 2) % n]) <= 0)
         {
-            hull.pop_back();
+            allLeft = false;
+            break;
         }
-        hull.push_back(point);
     }
-
-    // Ensure the polygon has exactly 'n' sides
-    while(hull.size() < n) 
+    if (!allLeft)
     {
-        generateConvexPolygon(n);
-        return;
+        std::reverse(Points.begin(), Points.end());
     }
 
-    // If hull has more than 'n' sides
-    if (hull.size() > n)
-    {
-        hull.resize(n);
-    }
-
-    // Hull contains the points that form the convex polygon
-    convextPolygon = hull;
+    // Store result as convext polygon
+    convextPolygon = std::move(Points);
 }
 
 // Compute the cross product of the two vectors to check the turn direction
@@ -267,7 +239,7 @@ int main(int argc, char **argv)
     glutDisplayFunc(display); 
 
     // Generate the initial polygon
-    generateConvexPolygon(100);
+    generateConvexPolygon(40);
 
     // Start main loop
     glutMainLoop(); 
