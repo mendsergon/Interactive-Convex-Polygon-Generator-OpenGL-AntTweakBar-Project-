@@ -11,6 +11,7 @@
    "-o", "${fileDirname}\\${fileBasenameNoExtension}.exe",
     "-I", "C:\\mingw64\\include",
     "-L", "C:\\mingw64\\lib",
+    "-lAntTweakBar64",
     "-lfreeglut",
    "-lopengl32",
    "-lglu32",

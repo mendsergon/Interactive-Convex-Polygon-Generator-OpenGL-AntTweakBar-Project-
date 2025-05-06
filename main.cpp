@@ -1,4 +1,5 @@
 #include <GL/glut.h> // GLUT library
+#include <AntTweakBar.h>
 #include <vector> // Needed to store points for the polygon
 #include <iostream>
 #include <algorithm> // To use sort
@@ -11,9 +12,11 @@ struct  Point // Store x and y coordinates of each point of the polygon
     float x, y;
 };
 
+
 // Global variables for number of sides and the polygon's points
 int currentNumSides = 3;
 std::vector<Point> convextPolygon;
+
 
 
 // Function declarations
@@ -24,7 +27,7 @@ bool isInside(const Point& p, const Point& edgeStart, const Point& edgeEnd);
 void fillPolygon(const std::vector<Point>& Polygon);
 void display();
 void onNumSidesChanged(int controlID);
-void setupGLUI();
+void setupAntTweakBar();
 
 // Andrew's monotone-chain convex hull
 static std::vector<Point> computeHull(std::vector<Point> pts)
@@ -212,7 +215,7 @@ void onNumSidesChanged(int)
 }
 
 // Function to set up GLUI controls
-void setupGLUI() 
+void setupAntTweakBar() 
 {
 
 }
@@ -271,7 +274,7 @@ int main(int argc, char **argv)
     glutDisplayFunc(display); 
 
     // Setup GLUI
-    setupGLUI();
+    setupAntTweakBar();
 
     // Generate the initial polygon
     generateConvexPolygon(3);
