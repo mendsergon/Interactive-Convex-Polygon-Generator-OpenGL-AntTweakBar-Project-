@@ -32,16 +32,51 @@ void setupGLUI();
 // Function to generate the polygon with 'n' sides
 void generateConvexPolygon(int n) 
 {
+    if (n < 3)
+    {
+        std::cerr << "Error: A polygon requires at least 3 points." << std::endl;
+        convextPolygon.clear();
+        return;
+    }
+
     convextPolygon.clear(); // Clear any existing polygon
 
-    // Generate random points;
+    // Generate a set of unique points;
     std::vector<Point> points;
-    for (int i=0; i < n; i++) 
+    int attempts = 0;
+    const int maxAttempts = 1000; // Limit retry attempts to avoid infinite loop
+    while (points.size() < n && attempts < maxAttempts) 
     {
+        attempts++;
         Point p;
         p.x = rand() % 600 + 20; // Random X coordinate
         p.y = rand() % 440 + 20; // Random Y coordinate
-        points.push_back(p);
+        
+        // Check if the point is already in the vector
+        bool isDuplicate = false;
+        for (const auto& existingPoint : points)
+        {
+            if (existingPoint.x == p.x && existingPoint.y == p.y)
+            {
+                isDuplicate = true;
+                break;
+            }
+        }
+
+        if (!isDuplicate)
+        {
+            points.push_back(p); // Add unique point
+        }
+        else
+        {
+            std::cout << "Duplicate found, retrying: (" << p.x << ", " << p.y << ")\n";
+        }
+    }
+
+    // If number of attempts exeeded the max limit, print an error
+    if (attempts >= maxAttempts)
+    {
+        std::cerr << "Error: Could not generate " << n << " unique points after " << maxAttempts << " attempts" << std::endl;
     }
 
     // Find the pivot
@@ -72,6 +107,19 @@ void generateConvexPolygon(int n)
             hull.pop_back();
         }
         hull.push_back(point);
+    }
+
+    // Ensure the polygon has exactly 'n' sides
+    while(hull.size() < n) 
+    {
+        generateConvexPolygon(n);
+        return;
+    }
+
+    // If hull has more than 'n' sides
+    if (hull.size() > n)
+    {
+        hull.resize(n);
     }
 
     // Hull contains the points that form the convex polygon
@@ -172,11 +220,32 @@ void display()
     glClear(GL_COLOR_BUFFER_BIT); 
 
     // Set polygon color (red)
-    glColor3f(1, 0, 0); 
+    glColor3f(1.0f, 0.8f, 0.8f); 
     glPointSize(1.5f);
 
     // Fill the polygon manually
     fillPolygon(convextPolygon);
+
+
+    // Draw polygon outline (black)
+    glColor3f(0.0f, 0.0f, 0.0f); // Black edges
+    glLineWidth(1.5f);
+    glBegin(GL_LINE_LOOP);
+    for (const Point& p : convextPolygon)
+    {
+        glVertex2f(p.x, p.y);
+    }
+    glEnd();
+
+    // Draw polygon vertices (blue dots)
+    glColor3f(0.0f, 0.0f, 1.0f); // Blue points
+    glPointSize(6.0);
+    glBegin(GL_POINTS);
+    for (const Point& p : convextPolygon)
+    {
+        glVertex2f(p.x, p.y);
+    }
+    glEnd();
 
     glFlush(); // Execute pending commands
 }
@@ -198,7 +267,7 @@ int main(int argc, char **argv)
     glutDisplayFunc(display); 
 
     // Generate the initial polygon
-    generateConvexPolygon(3);
+    generateConvexPolygon(100);
 
     // Start main loop
     glutMainLoop(); 
