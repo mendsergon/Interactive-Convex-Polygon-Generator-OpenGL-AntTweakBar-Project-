@@ -1,8 +1,8 @@
-#include <GL/glut.h> // GLUT library
+#include <GL/glut.h>
 #include <AntTweakBar.h>
-#include <vector> // Needed to store points for the polygon
+#include <vector> 
 #include <iostream>
-#include <algorithm> // To use sort
+#include <algorithm> 
 #include <cmath>
 #include <random>
 #include <ctime>
@@ -12,11 +12,9 @@ struct  Point // Store x and y coordinates of each point of the polygon
     float x, y;
 };
 
-
 // Global variables for number of sides and the polygon's points
 int currentNumSides = 3;
 std::vector<Point> convextPolygon;
-
 
 
 // Function declarations
@@ -35,29 +33,29 @@ static std::vector<Point> computeHull(std::vector<Point> pts)
     if (pts.size() < 3) return pts;
     // Sort lexicographically
     std::sort(pts.begin(), pts.end(), [](auto &A, auto &B)
-{
-    return (A.x < B.x) || (A.x == B.x && A.y < B.y);
-});
-std::vector<Point> H;
+    {
+        return (A.x < B.x) || (A.x == B.x && A.y < B.y);
+    });
+    std::vector<Point> H;
 
-// Lower hull
-for (auto &p : pts)
-{
-    while (H.size() >= 2 && crossProduct(H[H.size() - 2], H.back(), p) <= 0)
-        H.pop_back();
-        H.push_back(p);
-}
+    // Lower hull
+    for (auto &p : pts)
+    {
+        while (H.size() >= 2 && crossProduct(H[H.size() - 2], H.back(), p) <= 0)
+            H.pop_back();
+            H.push_back(p);
+    }
 
-// Upper hull
-for (int i = (int)pts.size() - 2, t = H.size() + 1; i >= 0; --i)
-{
-    auto &p = pts[i];
-    while (H.size() >= t && crossProduct(H[H.size() - 2], H.back(), p) <= 0)
-        H.pop_back();
-        H.push_back(p);
-}
-H.pop_back();
-return H;
+    // Upper hull
+    for (int i = (int)pts.size() - 2, t = H.size() + 1; i >= 0; --i)
+    {
+        auto &p = pts[i];
+        while (H.size() >= t && crossProduct(H[H.size() - 2], H.back(), p) <= 0)
+            H.pop_back();
+            H.push_back(p);
+    }
+    H.pop_back();
+    return H;
 }
 
 // Function to generate the polygon with 'n' sides
@@ -127,10 +125,10 @@ void generateConvexPolygon(int n)
     centroid.x /= n;
     centroid.y /= n;
     std::sort(boundary.begin(), boundary.end(), [&](auto &A, auto &B)
-{
-    return atan2(A.y - centroid.y, A.x - centroid.x) < atan2(B.y - centroid.y, B.x - centroid.x);
-});
-convextPolygon = std::move(boundary);
+    {
+        return atan2(A.y - centroid.y, A.x - centroid.x) < atan2(B.y - centroid.y, B.x - centroid.x);
+    });
+    convextPolygon = std::move(boundary);
 }
 
 // Compute the cross product of the two vectors to check the turn direction
@@ -210,13 +208,58 @@ void fillPolygon(const std::vector<Point>& Polygon)
 // Callback function for when the slider is changed
 void onNumSidesChanged(int) 
 {
+    // Regenerate polygon with the new number of sides
     generateConvexPolygon(currentNumSides);
+    // Ask GLUT to redraw
     glutPostRedisplay();
 }
 
-// Function to set up GLUI controls
+// Function to set up AntTweakBar controls
 void setupAntTweakBar() 
 {
+    // Initiate AntTweakbar
+    TwInit(TW_OPENGL, NULL);
+
+    // tell AntTweakBar the current window size now:
+    int w = glutGet(GLUT_WINDOW_WIDTH), h = glutGet(GLUT_WINDOW_HEIGHT);
+    TwWindowSize(w, h);
+
+    // Create a tweak bar
+    TwBar* bar = TwNewBar("Settings");
+
+    // Let window size changes propagate to AntTweakBar
+    glutReshapeFunc([](int w, int h)
+    {
+        TwWindowSize(w, h);
+        glViewport(0, 0, w, h);
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        gluOrtho2D(0, 640, 0, 480);
+        glMatrixMode(GL_MODELVIEW);
+    });
+
+    // Add slider for number of sides: 3-1000
+    TwAddVarCB(bar, "Sides", TW_TYPE_INT32,
+        // setter: update, regenerate polygon
+        [](const void* value, void* /*clientData*/) 
+        {
+            currentNumSides = *static_cast<const int*>(value);
+            generateConvexPolygon(currentNumSides);
+            glutPostRedisplay();
+        },
+        // getter: report the current value
+        [](void* value, void* /*clientData*/) 
+        {
+            *static_cast<int*>(value) = currentNumSides;
+        },
+        nullptr, "min=3 max=1000 step=1 help='Number of polygon sides (up to 1000)'");
+
+    // Route GLUT events into AntTweakBar:
+    glutKeyboardFunc   (reinterpret_cast<GLUTkeyboardfun>       (TwEventKeyboardGLUT));
+    glutMouseFunc      (reinterpret_cast<GLUTmousebuttonfun>   (TwEventMouseButtonGLUT));  
+    glutMotionFunc     (reinterpret_cast<GLUTmousemotionfun>   (TwEventMouseMotionGLUT));  
+    glutPassiveMotionFunc(reinterpret_cast<GLUTmousemotionfun>  (TwEventMouseMotionGLUT));
+    glutSpecialFunc    (reinterpret_cast<GLUTspecialfun>        (TwEventSpecialGLUT));
 
 }
 
@@ -254,6 +297,8 @@ void display()
     }
     glEnd();
 
+    TwDraw();
+
     glFlush(); // Execute pending commands
 }
 
@@ -278,6 +323,9 @@ int main(int argc, char **argv)
 
     // Generate the initial polygon
     generateConvexPolygon(3);
+
+    glutIdleFunc([](){ glutPostRedisplay(); });
+
 
     // Start main loop
     glutMainLoop(); 
