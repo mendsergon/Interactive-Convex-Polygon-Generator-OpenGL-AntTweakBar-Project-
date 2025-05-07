@@ -1,13 +1,6 @@
 #include <GL/glut.h>
 #include <AntTweakBar.h>
-#include <vector> 
-#include <iostream>
-#include <algorithm> 
-#include <cmath>
-#include <random>
-#include <ctime>
 #include "convex_polygon_functions.h"
-
 
 // Global variables for number of sides and the polygon's points
 int currentNumSides = 3;
