@@ -15,6 +15,13 @@ struct  Point // Store x and y coordinates of each point of the polygon
     float x, y;
 };
 
+
+struct Edge {
+    int yMin, yMax;
+    float x;
+    float dx_dy;
+};
+
 // Global variables for number of sides and the polygon's points
 extern int currentNumSides;
 extern std::vector<Point> convextPolygon;
@@ -23,8 +30,6 @@ extern std::vector<Point> convextPolygon;
 // Function declarations
 void generateConvexPolygon(int n);
 float crossProduct(const Point& o, const Point& a, const Point& b);
-void getBoundingBox(const std::vector<Point>& Polygon, float& minX, float& maxX, float& minY, float& maxY);
-bool isInside(const Point& p, const Point& edgeStart, const Point& edgeEnd);
 void fillPolygon(const std::vector<Point>& Polygon);
 void display();
 void onNumSidesChanged(int controlID);
@@ -140,73 +145,86 @@ float crossProduct(const Point& o, const Point& a, const Point& b)
     return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
 }
 
-// Find the bounding box
-void getBoundingBox(const std::vector<Point>& Polygon, float& minX, float& maxX, float& minY, float& maxY)
-{
-    minX = maxX = Polygon[0].x;
-    minY = maxY = Polygon[0].y;
 
-    for (const Point& p : Polygon)
-    {
-        if (p.x < minX) minX = p.x;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.y > maxY) maxY = p.y;
-    }
-}
-
-// Determine if a pixel is inside the polygon or not
-bool isInside(const Point& p, const Point& edgeStart, const Point& edgeEnd)
-{
-    const float epsilon = 0.01f; // small tolerance
-    return (edgeEnd.x - edgeStart.x) * (p.y - edgeStart.y) - (edgeEnd.y - edgeStart.y) * (p.x - edgeStart.x) >= 0;
-}
-
-// Loop through each pixel within the bounding box of the convex polygon and check if it is inside the polygon
 void fillPolygon(const std::vector<Point>& Polygon)
 {
-    // Get bounding box
-    float minX, maxX, minY, maxY;
-    getBoundingBox(Polygon, minX, maxX, minY, maxY);
+    int n = Polygon.size();
+    if (n < 3) return;
 
-    // Cast bounds to int for pixel stepping
-    int iMinX = static_cast<int>(std::floor(minX));
-    int iMaxX = static_cast<int>(std::ceil(maxX));
-    int iMinY = static_cast<int>(std::floor(minY));
-    int iMaxY = static_cast<int>(std::ceil(maxY));
+    // 1) Compute global Ymin and Ymax of the polygon
+    int Ymin = INT_MAX, Ymax = INT_MIN;
+    for (const auto& p : Polygon) {
+        Ymin = std::min(Ymin, (int)std::floor(p.y));
+        Ymax = std::max(Ymax, (int)std::ceil (p.y));
+    }
 
-    // Loop through each pixel
-    for (int y = iMinY; y <= iMaxY; ++y)
-    {
-        for (int x = iMinX; x <= iMaxX; ++x)
-        {
-            // Sample at pixel center
-            Point p = { x+ 0.5f, y + 0.5f};
+    // 2) Build the Edge Table (ET), indexed by scanline = yMin–Ymin
+    std::vector<std::vector<Edge>> ET(Ymax - Ymin + 1);
+    for (int i = 0; i < n; ++i) {
+        Point p1 = Polygon[i];
+        Point p2 = Polygon[(i + 1) % n];
+        // Skip horizontal edges
+        if (p1.y == p2.y) continue;
+        // Ensure p1.y < p2.y
+        if (p1.y > p2.y) std::swap(p1, p2);
 
-            bool inside = true;
+        int yMin = (int)std::ceil(p1.y);
+        int yMax = (int)std::ceil(p2.y);
+        float dy = p2.y - p1.y;
+        float dx = p2.x - p1.x;
+        float invSlope = dx / dy; 
+        // Compute x at the first scanline (yMin)
+        float xAtYmin = p1.x + (yMin - p1.y) * invSlope;
 
-            for (size_t i = 0; i < Polygon.size(); ++i)
-            {
-                const Point& start = Polygon[i];
-                const Point& end = Polygon[(i + 1) % Polygon.size()];
+        ET[yMin - Ymin].push_back(Edge{
+            yMin,             // yMin
+            yMax,             // yMax
+            xAtYmin,          // current x
+            invSlope          // Δx/Δy
+        });
+    }
 
-                if (!isInside(p, start, end))
-                {
-                    inside = false;
-                    break;
-                }
+    // 3) Active Edge Table (AET), initially empty
+    std::vector<Edge> AET;
+
+    // 4) Scan‐line loop
+    for (int y = Ymin; y < Ymax; ++y) {
+        int bucket = y - Ymin;
+
+        // a) Add edges whose yMin == y
+        for (auto& e : ET[bucket]) {
+            AET.push_back(e);
+        }
+        // b) Remove edges whose yMax == y
+        AET.erase(std::remove_if(AET.begin(), AET.end(),
+                    [y](const Edge& e){ return e.yMax <= y; }),
+                  AET.end());
+
+        // c) Sort AET by current x
+        std::sort(AET.begin(), AET.end(),
+                  [](const Edge& a, const Edge& b){
+                      return a.x < b.x;
+                  });
+
+        // d) Fill between pairs of intersections
+        glBegin(GL_POINTS);
+        for (int i = 0; i + 1 < (int)AET.size(); i += 2) {
+            int xStart = (int)std::ceil (AET[i    ].x);
+            int xEnd   = (int)std::floor(AET[i + 1].x);
+            for (int x = xStart; x <= xEnd; ++x) {
+                // draw pixel at (x,y) center
+                glVertex2f(x + 0.5f, y + 0.5f);
             }
+        }
+        glEnd();
 
-            if (inside)
-            {
-                // Draw pixel
-                glBegin(GL_POINTS);
-                glVertex2f(p.x, p.y);
-                glEnd();
-            }
+        // e) Incrementally update x for each active edge
+        for (auto& e : AET) {
+            e.x += e.dx_dy;
         }
     }
 }
+
 
 // Callback function for when the slider is changed
 void onNumSidesChanged(int) 
