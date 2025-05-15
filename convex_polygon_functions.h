@@ -15,7 +15,7 @@ struct  Point // Store x and y coordinates of each point of the polygon
     float x, y;
 };
 
-
+// Edge table
 struct Edge {
     int yMin, yMax;
     float x;
