@@ -151,14 +151,14 @@ void fillPolygon(const std::vector<Point>& Polygon)
     int n = Polygon.size();
     if (n < 3) return;
 
-    // 1) Compute global Ymin and Ymax of the polygon
+    // Compute global Ymin and Ymax of the polygon
     int Ymin = INT_MAX, Ymax = INT_MIN;
     for (const auto& p : Polygon) {
         Ymin = std::min(Ymin, (int)std::floor(p.y));
         Ymax = std::max(Ymax, (int)std::ceil (p.y));
     }
 
-    // 2) Build the Edge Table (ET), indexed by scanline = yMin–Ymin
+    // Build the Edge Table (ET), indexed by scanline = yMin–Ymin
     std::vector<std::vector<Edge>> ET(Ymax - Ymin + 1);
     for (int i = 0; i < n; ++i) {
         Point p1 = Polygon[i];
@@ -184,29 +184,29 @@ void fillPolygon(const std::vector<Point>& Polygon)
         });
     }
 
-    // 3) Active Edge Table (AET), initially empty
+    // Active Edge Table (AET), initially empty
     std::vector<Edge> AET;
 
-    // 4) Scan‐line loop
+    // Scan‐line loop
     for (int y = Ymin; y < Ymax; ++y) {
         int bucket = y - Ymin;
 
-        // a) Add edges whose yMin == y
+        // Add edges whose yMin == y
         for (auto& e : ET[bucket]) {
             AET.push_back(e);
         }
-        // b) Remove edges whose yMax == y
+        // Remove edges whose yMax == y
         AET.erase(std::remove_if(AET.begin(), AET.end(),
                     [y](const Edge& e){ return e.yMax <= y; }),
                   AET.end());
 
-        // c) Sort AET by current x
+        // Sort AET by current x
         std::sort(AET.begin(), AET.end(),
                   [](const Edge& a, const Edge& b){
                       return a.x < b.x;
                   });
 
-        // d) Fill between pairs of intersections
+        // Fill between pairs of intersections
         glBegin(GL_POINTS);
         for (int i = 0; i + 1 < (int)AET.size(); i += 2) {
             int xStart = (int)std::ceil (AET[i    ].x);
@@ -218,7 +218,7 @@ void fillPolygon(const std::vector<Point>& Polygon)
         }
         glEnd();
 
-        // e) Incrementally update x for each active edge
+        // Incrementally update x for each active edge
         for (auto& e : AET) {
             e.x += e.dx_dy;
         }
