@@ -9,3 +9,5 @@ uct” of two vectors, to check the direction of rotation and ensure
 the correct order of points. The use of the library was initially planned
 GLUI, but due to inability to install AntTweakBar was chosen for management
 of the polygon parameters by the user.
+
+For a more detailed description read: ConvexPolygons_English_Paper.pdf
